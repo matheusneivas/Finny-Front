@@ -1,0 +1,56 @@
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  border-radius: 8px;
+  transition: background 150ms ease;
+  width: 100%;
+}
+
+.checkbox-item:hover:not(:disabled) {
+  background: #F5F5F5;
+}
+
+.checkbox-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.checkbox-box {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #BDBDBD;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #FFFFFF;
+  transition: all 200ms cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.checkbox-checked .checkbox-box {
+  background: #1E88E5;
+  border-color: #1E88E5;
+}
+
+.checkbox-label {
+  font-size: 16px;
+  font-weight: 400;
+  color: #212121;
+  line-height: 1.4;
+}

@@ -5,6 +5,8 @@ import { LoginPage } from './pages/LoginPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { OnboardingSuccess } from './pages/OnboardingSuccess';
 import { HomePage } from './pages/HomePage';
+import { ProfilePage } from './pages/ProfilePage';
+import { GoalsPage } from './pages/GoalsPage';
 
 // / /login: se já autenticado e onboarding completo → /home
 //           se autenticado mas onboarding incompleto → /onboarding
@@ -37,6 +39,8 @@ function AppRoutes() {
 
       {/* Protegidas — exige token + onboarding completo */}
       <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

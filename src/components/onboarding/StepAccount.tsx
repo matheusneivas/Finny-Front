@@ -24,7 +24,10 @@ export function StepAccount({ userName, onSubmit, loading }: Props) {
     if (!email) errs.email = 'Informe seu e-mail';
     else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'E-mail inválido';
     if (!password) errs.password = 'Informe uma senha';
-    else if (password.length < 6) errs.password = 'A senha deve ter pelo menos 6 caracteres';
+    else if (password.length < 8) errs.password = 'A senha deve ter pelo menos 8 caracteres';
+    else if (!/[A-Z]/.test(password)) errs.password = 'A senha deve ter pelo menos uma letra maiúscula';
+    else if (!/[a-z]/.test(password)) errs.password = 'A senha deve ter pelo menos uma letra minúscula';
+    else if (!/[0-9]/.test(password)) errs.password = 'A senha deve ter pelo menos um número';
     if (password && confirm !== password) errs.confirm = 'As senhas não coincidem';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -57,7 +60,7 @@ export function StepAccount({ userName, onSubmit, loading }: Props) {
         />
       </QuestionCard>
 
-      <QuestionCard question="Crie uma senha" icon="🔒" error={errors.password} helper="Mínimo de 6 caracteres">
+      <QuestionCard question="Crie uma senha" icon="🔒" error={errors.password} helper="Mínimo 8 caracteres com maiúscula, minúscula e número">
         <input
           type="password"
           className={`text-input ${errors.password ? 'input-error' : ''}`}

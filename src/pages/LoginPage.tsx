@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { getOnboardingStatus } from '../services/onboarding';
 import './AuthPage.css';
 
 export function LoginPage() {
@@ -18,12 +19,31 @@ export function LoginPage() {
     setLoading(true);
     setError('');
     try {
+      // 1. Login — API returns only tokens (no user object)
       const res = await api.post('/api/v1/auth/login', { email, password });
-      const { accessToken, refreshToken, user } = res.data;
-      login(accessToken, refreshToken, user);
-      // Route guard will handle redirect based on onboardingCompleted
-      navigate(user.onboardingCompleted ? '/home' : '/onboarding', { replace: true });
+      const { accessToken, refreshToken } = res.data;
+      const rawUser = res.data.user ?? {};
+      const user = {
+        id: rawUser.id ?? '',
+        name: rawUser.name ?? rawUser.fullName ?? email.split('@')[0],
+        email: rawUser.email ?? email,
+        onboardingCompleted: false,
+      };
+
+      // 2. Save tokens so the next request can use them
+      localStorage.setItem('access_token', accessToken);
+      localStorage.setItem('refresh_token', refreshToken);
+
+      // 3. Check onboarding status
+      const status = await getOnboardingStatus();
+      const completed = status.completed;
+
+      // 4. Finalise login with correct onboardingCompleted flag
+      login(accessToken, refreshToken, { ...user, onboardingCompleted: completed });
+      navigate(completed ? '/home' : '/onboarding', { replace: true });
     } catch (err: unknown) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
       const e = err as { response?: { data?: { message?: string } } };
       setError(e?.response?.data?.message ?? 'E-mail ou senha inválidos');
     } finally {

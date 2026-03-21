@@ -52,6 +52,8 @@ export function OnboardingPage() {
 
   // step 0 = welcome, 1-5 = profile questions, 6 = account creation
   const [currentStep, setCurrentStep] = useState(0);
+  // true when user started from the welcome screen (new user flow → always go to step 6)
+  const [isNewUserFlow, setIsNewUserFlow] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
@@ -75,7 +77,14 @@ export function OnboardingPage() {
           setCurrentStep(step);
           setProgressPercent(getProgressPercent(step));
         })
-        .catch(() => setCurrentStep(1))
+        .catch(() => {
+          // Stale/invalid token — clear it and show welcome screen
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('onboarding_completed');
+          setCurrentStep(0);
+        })
         .finally(() => setInitializing(false));
     } else {
       // New user — start from welcome
@@ -130,8 +139,8 @@ export function OnboardingPage() {
 
   const handleStep5 = (data: Step5Data) => {
     setCollected((p) => ({ ...p, step5: data }));
-    if (isAuthenticated) {
-      // Existing user: submit steps to API then finish
+    if (isAuthenticated && !isNewUserFlow) {
+      // Existing user resuming onboarding: submit steps to API then finish
       submitAllSteps({ ...collected, step5: data });
     } else {
       // New user: go to account creation step
@@ -164,11 +173,18 @@ export function OnboardingPage() {
     try {
       // 1. Create account
       const res = await api.post('/api/v1/auth/register', {
-        name: step1.name,
+        fullName: step1.name,
         email: accountData.email,
         password: accountData.password,
       });
-      const { accessToken, refreshToken, user } = res.data;
+      const { accessToken, refreshToken } = res.data;
+      const rawUser = res.data.user ?? {};
+      const user = {
+        id: rawUser.id ?? '',
+        name: rawUser.name ?? rawUser.fullName ?? step1.name,
+        email: rawUser.email ?? accountData.email,
+        onboardingCompleted: false,
+      };
 
       // 2. Save auth
       login(accessToken, refreshToken, user);
@@ -193,7 +209,19 @@ export function OnboardingPage() {
 
   // Welcome screen
   if (currentStep === 0) {
-    return <WelcomeScreen onStart={() => changeStep(1, 'left')} />;
+    return (
+      <WelcomeScreen
+        onStart={() => {
+          // Clear any leftover tokens from failed previous attempts
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('onboarding_completed');
+          setIsNewUserFlow(true);
+          changeStep(1, 'left');
+        }}
+      />
+    );
   }
 
   const isAccountStep = currentStep === 6;

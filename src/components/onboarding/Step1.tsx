@@ -28,15 +28,46 @@ function maxBirthDate(): string {
   return d.toISOString().split('T')[0];
 }
 
+function maskCPF(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+function isValidCPF(cpf: string): boolean {
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1+$/.test(digits)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(digits[i]) * (10 - i);
+  let v1 = 11 - (sum % 11);
+  if (v1 >= 10) v1 = 0;
+  if (v1 !== parseInt(digits[9])) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(digits[i]) * (11 - i);
+  let v2 = 11 - (sum % 11);
+  if (v2 >= 10) v2 = 0;
+  return v2 === parseInt(digits[10]);
+}
+
 export function Step1({ initialData, onSubmit, loading }: Props) {
   const [name, setName] = useState(initialData.name ?? '');
+  const [cpf, setCpf] = useState(initialData.cpf ?? '');
   const [birthDate, setBirthDate] = useState(initialData.birthDate ?? '');
   const [occupation, setOccupation] = useState(initialData.occupation ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const clearError = (key: string) => setErrors((p) => ({ ...p, [key]: '' }));
+
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = 'Informe seu nome';
+    if (!cpf) errs.cpf = 'Informe seu CPF';
+    else if (!isValidCPF(cpf)) errs.cpf = 'CPF inválido';
     if (!birthDate) errs.birthDate = 'Informe sua data de nascimento';
     else if (!isAtLeast18(birthDate)) errs.birthDate = 'Você deve ter pelo menos 18 anos';
     setErrors(errs);
@@ -45,7 +76,7 @@ export function Step1({ initialData, onSubmit, loading }: Props) {
 
   const handleSubmit = () => {
     if (!validate()) return;
-    onSubmit({ name: name.trim(), birthDate, occupation: occupation || undefined });
+    onSubmit({ name: name.trim(), cpf, birthDate, occupation: occupation || undefined });
   };
 
   return (
@@ -60,9 +91,22 @@ export function Step1({ initialData, onSubmit, loading }: Props) {
           type="text"
           className={`text-input ${errors.name ? 'input-error' : ''}`}
           value={name}
-          onChange={(e) => { setName(e.target.value); if (errors.name) setErrors((p) => ({ ...p, name: '' })); }}
+          onChange={(e) => { setName(e.target.value); clearError('name'); }}
           placeholder="Seu nome completo"
           autoComplete="name"
+          disabled={loading}
+        />
+      </QuestionCard>
+
+      <QuestionCard question="Qual é o seu CPF?" icon="🪪" error={errors.cpf}>
+        <input
+          type="text"
+          className={`text-input ${errors.cpf ? 'input-error' : ''}`}
+          value={cpf}
+          onChange={(e) => { setCpf(maskCPF(e.target.value)); clearError('cpf'); }}
+          placeholder="000.000.000-00"
+          inputMode="numeric"
+          autoComplete="off"
           disabled={loading}
         />
       </QuestionCard>
@@ -78,7 +122,7 @@ export function Step1({ initialData, onSubmit, loading }: Props) {
           className={`text-input ${errors.birthDate ? 'input-error' : ''}`}
           value={birthDate}
           max={maxBirthDate()}
-          onChange={(e) => { setBirthDate(e.target.value); if (errors.birthDate) setErrors((p) => ({ ...p, birthDate: '' })); }}
+          onChange={(e) => { setBirthDate(e.target.value); clearError('birthDate'); }}
           disabled={loading}
         />
       </QuestionCard>

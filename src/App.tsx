@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AppLayout } from './components/AppLayout';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -7,6 +8,7 @@ import { OnboardingSuccess } from './pages/OnboardingSuccess';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { GoalsPage } from './pages/GoalsPage';
+import { DashboardPage } from './pages/DashboardPage';
 
 // / /login: se já autenticado e onboarding completo → /home
 //           se autenticado mas onboarding incompleto → /onboarding
@@ -38,9 +40,12 @@ function AppRoutes() {
       <Route path="/onboarding/success" element={<OnboardingSuccess />} />
 
       {/* Protegidas — exige token + onboarding completo */}
-      <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-      <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+      <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/goals" element={<GoalsPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+      </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

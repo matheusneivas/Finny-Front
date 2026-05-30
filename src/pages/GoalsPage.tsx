@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   getGoals, createGoal, updateGoal, contributeGoal, deleteGoal,
   type Goal, type CreateGoalPayload,
@@ -264,7 +263,6 @@ function GoalForm({ initial = EMPTY_FORM, editingId, onSave, onCancel, saving }:
 }
 
 export function GoalsPage() {
-  const navigate = useNavigate();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -342,11 +340,6 @@ export function GoalsPage() {
   return (
     <div className="goals-page">
       <header className="goals-header">
-        <button className="goals-back-btn" onClick={() => navigate('/home')} aria-label="Voltar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
         <div className="goals-header-title">
           <span>🎯</span>
           <span>Minhas Metas</span>

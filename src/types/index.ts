@@ -40,6 +40,7 @@ export interface OnboardingStepResponse {
 export interface Step1Data {
   birthDate: string;
   occupation?: string;
+  cpf: string;
 }
 
 // Step 2

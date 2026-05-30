@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getProfile, updateProfile, type UserProfile } from '../services/profile';
 import './ProfilePage.css';
@@ -120,7 +119,6 @@ function ToggleField({ value, onChange }: { value?: boolean; onChange: (v: boole
 }
 
 export function ProfilePage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({});
   const [loading, setLoading] = useState(true);
@@ -161,16 +159,10 @@ export function ProfilePage() {
     <div className="profile-page">
       {/* Header */}
       <header className="profile-header">
-        <button className="profile-back-btn" onClick={() => navigate('/home')} aria-label="Voltar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
         <div className="profile-header-title">
           <span className="profile-header-owl">🦉</span>
           <span>Meu Perfil</span>
         </div>
-        <div style={{ width: 36 }} />
       </header>
 
       {loading ? (
@@ -197,6 +189,16 @@ export function ProfilePage() {
                 value={profile.fullName ?? ''}
                 onChange={(e) => set('fullName')(e.target.value)}
                 placeholder="Seu nome completo"
+              />
+            </Field>
+            <Field label="CPF">
+              <input
+                className="profile-input"
+                value={profile.cpf ?? ''}
+                onChange={(e) => set('cpf')(e.target.value)}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                readOnly
               />
             </Field>
             <Field label="Profissão">

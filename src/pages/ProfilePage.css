@@ -1,5 +1,7 @@
 .profile-page {
-  min-height: 100dvh;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   background: #F5F5F5;
   font-family: 'Inter', sans-serif;
   display: flex;

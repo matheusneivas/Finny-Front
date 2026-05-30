@@ -4,6 +4,7 @@ export interface UserProfile {
   id?: string;
   fullName?: string;
   email?: string;
+  cpf?: string;
   occupation?: string;
   birthDate?: string;
   incomeRange?: string;

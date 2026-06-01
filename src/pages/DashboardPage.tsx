@@ -6,6 +6,7 @@ import {
   createTransaction,
   updateTransaction,
   deleteTransaction,
+  deleteRecurrence,
   FREQUENCY_LABELS,
   type CategorySpending,
   type Transaction,
@@ -17,44 +18,6 @@ import { resolveIcon } from '../utils/iconMap';
 import './DashboardPage.css';
 
 const FREQUENCIES: Frequency[] = ['ONCE', 'DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'YEARLY'];
-
-// Determines whether a (possibly recurring) transaction should appear in the given month.
-// Works whether the backend stores one record per series or one per occurrence.
-function shouldShowInMonth(tx: Transaction, startDate: string, endDate: string): boolean {
-  const mStart = new Date(startDate + 'T00:00:00');
-  const mEnd   = new Date(endDate   + 'T23:59:59');
-  const txDate = new Date((tx.transactionDate || tx.createdAt).split('T')[0] + 'T00:00:00');
-  const freq   = tx.frequency ?? 'ONCE';
-  const rc     = (tx as unknown as { repeatCount?: number }).repeatCount;
-
-  // Transaction hasn't started yet
-  if (txDate > mEnd) return false;
-
-  // Non-recurring: only show in its own month
-  if (freq === 'ONCE') {
-    return txDate >= mStart;
-  }
-
-  // Recurring transaction that already started on or before this month-end.
-  // If txDate falls within this month, it's a direct occurrence — always show.
-  if (txDate >= mStart) return true;
-
-  // txDate is BEFORE this month — only show if recurrence extends into this month.
-  if (rc && rc > 0) {
-    const last = new Date(txDate);
-    switch (freq) {
-      case 'DAILY':     last.setDate(last.getDate()       + (rc - 1));     break;
-      case 'WEEKLY':    last.setDate(last.getDate()       + (rc - 1) * 7); break;
-      case 'MONTHLY':   last.setMonth(last.getMonth()     + (rc - 1));     break;
-      case 'QUARTERLY': last.setMonth(last.getMonth()     + (rc - 1) * 3); break;
-      case 'YEARLY':    last.setFullYear(last.getFullYear() + (rc - 1));   break;
-    }
-    return last >= mStart;
-  }
-
-  // No repeatCount → infinite recurrence
-  return true;
-}
 
 function formatBRL(value: number) {
   return (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -107,7 +70,7 @@ function CategoryBar({ cat }: { cat: CategorySpending }) {
 function SpreadsheetTable({ transactions, onEdit, onDelete }: {
   transactions: Transaction[];
   onEdit: (t: Transaction) => void;
-  onDelete: (id: string) => void;
+  onDelete: (t: Transaction) => void;
 }) {
   if (transactions.length === 0) {
     return <p className="empty-msg">Nenhuma transação neste período.<br />Clique em <strong>+ Adicionar</strong> para começar.</p>;
@@ -173,13 +136,46 @@ function SpreadsheetTable({ transactions, onEdit, onDelete }: {
                 </td>
                 <td className="col-actions">
                   <button className="sheet-action-btn" onClick={() => onEdit(tx)} title="Editar">✏️</button>
-                  <button className="sheet-action-btn sheet-action-btn--danger" onClick={() => onDelete(tx.id)} title="Excluir">🗑️</button>
+                  <button className="sheet-action-btn sheet-action-btn--danger" onClick={() => onDelete(tx)} title="Excluir">🗑️</button>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ─── Recurrence Delete Modal ──────────────────────────────────────────────────
+function RecurrenceDeleteModal({
+  onClose, onSingle, onFuture, onAll,
+}: {
+  onClose: () => void;
+  onSingle: () => void;
+  onFuture: () => void;
+  onAll: () => void;
+}) {
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-sheet" style={{ maxWidth: 360 }}>
+        <div className="modal-handle" />
+        <div className="modal-header">
+          <h2 className="modal-title">Excluir transação recorrente</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body" style={{ gap: 10, display: 'flex', flexDirection: 'column' }}>
+          <button className="modal-btn modal-btn--cancel" style={{ justifyContent: 'flex-start', textAlign: 'left' }} onClick={onSingle}>
+            🗑️ Excluir só este mês
+          </button>
+          <button className="modal-btn modal-btn--cancel" style={{ justifyContent: 'flex-start', textAlign: 'left' }} onClick={onFuture}>
+            ⏩ Excluir este e os próximos
+          </button>
+          <button className="modal-btn modal-btn--save" style={{ background: '#E53935' }} onClick={onAll}>
+            ❌ Excluir todos os meses
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -228,10 +224,10 @@ function txToForm(tx: Transaction): FormState {
 }
 
 function TransactionModal({
-  editing, categories, onSave, onClose, saving, error,
+  editing, categoriesByType, onSave, onClose, saving, error,
 }: {
   editing: Transaction | null;
-  categories: Category[];
+  categoriesByType: { EXPENSE: Category[]; INCOME: Category[] };
   onSave: (payload: TransactionPayload) => void;
   onClose: () => void;
   saving: boolean;
@@ -289,8 +285,8 @@ function TransactionModal({
           <div className="form-field">
             <label className="form-label">Tipo</label>
             <div className="type-toggle">
-              <button type="button" className={`type-btn type-btn--expense ${form.type === 'EXPENSE' ? 'active' : ''}`} onClick={() => set('type')('EXPENSE')}>📉 Despesa</button>
-              <button type="button" className={`type-btn type-btn--income ${form.type === 'INCOME' ? 'active' : ''}`} onClick={() => set('type')('INCOME')}>📈 Receita</button>
+              <button type="button" className={`type-btn type-btn--expense ${form.type === 'EXPENSE' ? 'active' : ''}`} onClick={() => { set('type')('EXPENSE'); set('categoryId')(''); }}>📉 Despesa</button>
+              <button type="button" className={`type-btn type-btn--income ${form.type === 'INCOME' ? 'active' : ''}`} onClick={() => { set('type')('INCOME'); set('categoryId')(''); }}>📈 Receita</button>
             </div>
           </div>
 
@@ -320,7 +316,7 @@ function TransactionModal({
             <label className="form-label">Categoria</label>
             <select className="form-input form-select" value={form.categoryId} onChange={e => set('categoryId')(e.target.value)}>
               <option value="">Sem categoria</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{resolveIcon(c.icon)} {c.name}</option>)}
+              {categoriesByType[form.type].map((c: Category) => <option key={c.id} value={c.id}>{resolveIcon(c.icon)} {c.name}</option>)}
             </select>
           </div>
 
@@ -381,9 +377,10 @@ export function DashboardPage() {
   const [minMonth, setMinMonth] = useState<Date | null>(null);
   const [spending, setSpending] = useState<CategorySpending[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesByType, setCategoriesByType] = useState<{ EXPENSE: Category[]; INCOME: Category[] }>({ EXPENSE: [], INCOME: [] });
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState('');
+  const [deletingTx, setDeletingTx] = useState<Transaction | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [saving, setSaving] = useState(false);
@@ -403,7 +400,9 @@ export function DashboardPage() {
         setMinMonth(new Date(earliest.getFullYear(), earliest.getMonth(), 1));
       })
       .catch(() => {});
-    getCategories().then(setCategories).catch(() => {});
+    Promise.all([getCategories('EXPENSE'), getCategories('INCOME')])
+      .then(([expense, income]) => setCategoriesByType({ EXPENSE: expense, INCOME: income }))
+      .catch(() => {});
   }, []);
 
   const loadData = () => {
@@ -411,7 +410,7 @@ export function DashboardPage() {
     setPageError('');
     Promise.allSettled([
       getSpendingByCategory(startDate, endDate),
-      getTransactions(0, 500),
+      getTransactions(0, 500, startDate, endDate),
     ])
       .then(([catResult, txResult]) => {
         if (catResult.status === 'fulfilled') {
@@ -420,7 +419,11 @@ export function DashboardPage() {
         if (txResult.status === 'fulfilled') {
           const d = txResult.value;
           const all: Transaction[] = d.content ?? (Array.isArray(d) ? d as unknown as Transaction[] : []);
-          setTransactions(all.filter(tx => shouldShowInMonth(tx, startDate, endDate)));
+          setTransactions(all);
+        } else {
+          const err = txResult.reason as { response?: { data?: { message?: string } } };
+          setPageError(err?.response?.data?.message ?? 'Erro ao carregar transações');
+          console.error('getTransactions failed:', txResult.reason);
         }
       })
       .finally(() => setLoading(false));
@@ -458,10 +461,34 @@ export function DashboardPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta transação?')) return;
-    try { await deleteTransaction(id); loadData(); }
+  const handleDelete = (tx: Transaction) => {
+    if (tx.recurrenceGroupId) {
+      setDeletingTx(tx);
+    } else {
+      if (!confirm('Excluir esta transação?')) return;
+      deleteTransaction(tx.id).then(loadData).catch(() => setPageError('Erro ao excluir transação.'));
+    }
+  };
+
+  const handleDeleteSingle = async () => {
+    if (!deletingTx) return;
+    try { await deleteTransaction(deletingTx.id); loadData(); }
     catch { setPageError('Erro ao excluir transação.'); }
+    finally { setDeletingTx(null); }
+  };
+
+  const handleDeleteFuture = async () => {
+    if (!deletingTx) return;
+    try { await deleteRecurrence(deletingTx.id, 'THIS_AND_FUTURE'); loadData(); }
+    catch { setPageError('Erro ao excluir transações.'); }
+    finally { setDeletingTx(null); }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!deletingTx) return;
+    try { await deleteRecurrence(deletingTx.id, 'ALL'); loadData(); }
+    catch { setPageError('Erro ao excluir transações.'); }
+    finally { setDeletingTx(null); }
   };
 
   const totalIncome  = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + (t.amount ?? 0), 0);
@@ -518,11 +545,20 @@ export function DashboardPage() {
       {modalOpen && (
         <TransactionModal
           editing={editing}
-          categories={categories}
+          categoriesByType={categoriesByType}
           onSave={handleSave}
           onClose={closeModal}
           saving={saving}
           error={formError}
+        />
+      )}
+
+      {deletingTx && (
+        <RecurrenceDeleteModal
+          onClose={() => setDeletingTx(null)}
+          onSingle={handleDeleteSingle}
+          onFuture={handleDeleteFuture}
+          onAll={handleDeleteAll}
         />
       )}
     </div>

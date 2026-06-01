@@ -29,6 +29,7 @@ export interface Transaction {
   dueDayOfMonth?: number;
   notes?: string;
   createdAt: string;
+  recurrenceGroupId?: string | null;
 }
 
 export interface TransactionPayload {
@@ -81,8 +82,9 @@ export interface Category {
   color: string;
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const res = await api.get('/api/v1/categories');
+export async function getCategories(type?: 'EXPENSE' | 'INCOME'): Promise<Category[]> {
+  const params = type ? { type } : undefined;
+  const res = await api.get('/api/v1/categories', { params });
   return Array.isArray(res.data) ? res.data : res.data.content ?? [];
 }
 
@@ -104,9 +106,9 @@ export async function getTransactionSummary(startDate: string, endDate: string):
 }
 
 export async function getTransactions(page = 0, size = 20, startDate?: string, endDate?: string): Promise<TransactionPage> {
-  const params: Record<string, unknown> = { page, size };
-  if (startDate) params.startDate = startDate;
-  if (endDate) params.endDate = endDate;
+  const params: Record<string, unknown> = startDate || endDate
+    ? { startDate, endDate }
+    : { page, size };
   const res = await api.get('/api/v1/transactions', { params });
   return res.data;
 }
@@ -123,4 +125,8 @@ export async function updateTransaction(id: string, data: TransactionPayload): P
 
 export async function deleteTransaction(id: string): Promise<void> {
   await api.delete(`/api/v1/transactions/${id}`);
+}
+
+export async function deleteRecurrence(id: string, mode: 'ALL' | 'THIS_AND_FUTURE'): Promise<void> {
+  await api.delete(`/api/v1/transactions/${id}/recurrence`, { params: { mode } });
 }
